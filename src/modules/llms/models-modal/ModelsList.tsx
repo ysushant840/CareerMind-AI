@@ -1,0 +1,366 @@
+import * as React from 'react';
+
+import type { SxProps } from '@mui/joy/styles/types';
+import { Box, Chip, IconButton, List, ListItem, ListItemButton, Typography } from '@mui/joy';
+import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined';
+import SdCardOutlinedIcon from '@mui/icons-material/SdCardOutlined';
+import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+
+import type { DModelsServiceId } from '~/common/stores/llms/llms.service.types';
+import { isLLMChatFree_cached } from '~/common/stores/llms/llms.pricing';
+import { DLLM, DLLMId, getLLMContextTokens, getLLMLabel, getLLMMaxOutputTokens, getLLMPubDate, isLLMCustomUserParameters, isLLMHidden, isLLMRecentlyPublished, LLM_IF_ANT_PromptCaching, LLM_IF_GEM_CodeExecution, LLM_IF_OAI_Fn, LLM_IF_OAI_Json, LLM_IF_OAI_PromptCaching, LLM_IF_OAI_Reasoning, LLM_IF_OAI_Vision, LLM_IF_Outputs_Audio, LLM_IF_Outputs_Image, LLM_IF_Tools_WebSearch } from '~/common/stores/llms/llms.types';
+import { GoodTooltip } from '~/common/components/GoodTooltip';
+import { PhGearSixIcon } from '~/common/components/icons/phosphor/PhGearSixIcon';
+import { STAR_EMOJI, StarredToggle, starredToggleStyle } from '~/common/components/StarIcons';
+import { findModelsServiceOrNull, llmsStoreActions } from '~/common/stores/llms/store-llms';
+import { sortLLMsByServiceLabel } from '~/common/stores/llms/components/llms.dropdown.utils';
+import { useLLMsByService } from '~/common/stores/llms/llms.hooks';
+import { useIsMobile } from '~/common/components/useMatchMedia';
+import { useModelDomains } from '~/common/stores/llms/hooks/useModelDomains';
+import { useUIPreferencesStore } from '~/common/stores/store-ui';
+
+import type { IModelVendor } from '../vendors/IModelVendor';
+import { findModelVendor } from '../vendors/vendors.registry';
+
+
+// configuration
+const SHOW_LLM_INTERFACES = false;
+const SHOW_LLM_TOOLTIPS = false;
+
+
+const absorbListPadding: SxProps = { my: 'calc(var(--ListItem-paddingY) / -2)' };
+
+const styles = {
+  liButton: {
+    border: 'none',
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    gap: {
+      xs: 0.5,
+      md: 1,
+    } as const,
+  } as const,
+  modelText: {
+    flex: 1,
+    wordBreak: 'break-all',
+  } as const,
+  modelCustomizedText: {
+    flex: 1,
+    wordBreak: 'break-all',
+    fontWeight: 'lg',
+    // fontStyle: 'italic',
+  } as const,
+  modelHiddenText: {
+    flex: 1,
+    wordBreak: 'break-all',
+    color: 'neutral.plainDisabledColor',
+  } as const,
+  chipPreferred: {
+    // boxShadow: 'sm',
+  } as const,
+  chipFree: {
+    // boxShadow: 'sm',
+    boxShadow: 'md',
+  } as const,
+  chipCapability: {
+    // boxShadow: 'sm',
+    boxShadow: 'md',
+  } as const,
+  chipDisabled: {
+    opacity: 0.5,
+  } as const,
+  chipNew: {
+    bgcolor: '#d4ff3a',
+    color: 'black',
+    fontWeight: 'lg',
+  },
+  // styleNameChip: {
+  //   marginLeft: '0.5rem',
+  //   fontSize: '0.75rem',
+  // } as const,
+} as const;
+
+
+export const ModelItem = React.memo(function ModelItem(props: {
+  llm: DLLM,
+  serviceLabel: string,
+  vendor: IModelVendor,
+  domains: ReturnType<typeof useModelDomains>,
+  debugShowFn: boolean,
+  isMobile: boolean,
+  onModelClicked: (llmId: DLLMId) => void,
+  onModelSetHidden?: (llmId: DLLMId, hidden: boolean) => void,
+  onModelSetStarred: (llmId: DLLMId, starred: boolean) => void,
+}) {
+
+  // derived
+  const { llm, domains, onModelClicked, onModelSetHidden /*, onModelSetStarred*/ } = props;
+
+  const seemsFree = isLLMChatFree_cached(llm);
+  const isHidden = isLLMHidden(llm);
+  const isCustomized = isLLMCustomUserParameters(llm);
+  const isNotSymlink = !llm.label.startsWith('🔗'); // getLLMLabel exception: need access to the base
+  const llmLabel = getLLMLabel(llm);
+
+  // "new" badge: shown only when pubDate is set AND within the recency window (see LLM_RECENTLY_PUBLISHED_DAYS)
+  const pubDate = getLLMPubDate(llm);
+  const isRecentlyPublished = isLLMRecentlyPublished(llm);
+
+
+  const handleLLMConfigure = React.useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (event.shiftKey) {
+      console.log('llm', llm);
+      return;
+    }
+    onModelClicked(llm.id);
+  }, [llm, onModelClicked]);
+
+  const handleLLMHide = React.useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+    onModelSetHidden?.(llm.id, true);
+  }, [llm.id, onModelSetHidden]);
+
+  const handleLLMUnhide = React.useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+    onModelSetHidden?.(llm.id, false);
+  }, [llm.id, onModelSetHidden]);
+
+  // const handleLLMToggleStar = React.useCallback((event: React.MouseEvent) => {
+  //   event.stopPropagation();
+  //   onModelSetStarred(llm.id, !llm.userStarred);
+  // }, [llm.id, llm.userStarred, onModelSetStarred]);
+
+
+  // label will be of the form "Model Name (Date)" - here we extract the date
+  // const label = llm.label;
+  // const dateMatch = _label.match(/^(.*?)\s*\(([^)]+)\)$/);
+  // const labelWithoutDate = dateMatch ? dateMatch[1].trim() : _label;
+  // const labelDate = dateMatch ? dateMatch[2] : '';
+
+  let tooltip = '';
+  if (SHOW_LLM_TOOLTIPS) {
+    tooltip = props.serviceLabel;
+    if (llm.description)
+      tooltip += ' · ' + llm.description;
+    const llmContextTokens = getLLMContextTokens(llm);
+    const llmMaxOutputTokens = getLLMMaxOutputTokens(llm);
+    if (llmContextTokens) {
+      tooltip += '\n\n' + llmContextTokens.toLocaleString() + ' tokens';
+      if (llmMaxOutputTokens)
+        tooltip += ' / ' + llmMaxOutputTokens.toLocaleString() + ' max output tokens';
+    } else
+      tooltip += ' · token count not provided';
+    if (seemsFree)
+      tooltip += '\n\n🎁 Free model - refresh to check for pricing updates';
+  }
+
+  const chipsComponentsMemo = React.useMemo(() => {
+    if (!SHOW_LLM_INTERFACES)
+      return null;
+    return llm.interfaces.map((iface, i) => {
+      switch (iface) {
+        case LLM_IF_OAI_Vision:
+          return <Chip key={i} size='sm' variant='plain' sx={{ boxShadow: 'xs' }}><VisibilityOutlinedIcon />️</Chip>;
+        case LLM_IF_OAI_Reasoning:
+          return <Chip key={i} size='sm' variant='plain' sx={{ boxShadow: 'xs' }}><PsychologyOutlinedIcon /></Chip>;
+        case LLM_IF_ANT_PromptCaching:
+        case LLM_IF_OAI_PromptCaching:
+          return <Chip key={i} size='sm' variant='plain' sx={{ boxShadow: 'xs' }}><SdCardOutlinedIcon /></Chip>;
+        // Ignored
+        case LLM_IF_OAI_Json:
+        case LLM_IF_OAI_Fn:
+        case LLM_IF_GEM_CodeExecution:
+          return null;
+      }
+    }).reverse();
+  }, [llm.interfaces]);
+
+
+  const featuresChipMemo = React.useMemo(() => {
+    if (!isNotSymlink) return null;
+    let fs = '';
+    if (llm.isUserClone) fs += '➕ ';
+    if (llm.interfaces.includes(LLM_IF_OAI_Reasoning)) fs += '🧠 ';
+    if (llm.interfaces.includes(LLM_IF_Tools_WebSearch)) fs += '🌐 ';
+    if (llm.interfaces.includes(LLM_IF_Outputs_Audio)) fs += '🔊 ';
+    if (llm.interfaces.includes(LLM_IF_Outputs_Image)) fs += '🖼️ ';
+    return !fs ? null : <Chip size='sm' variant='plain' sx={isHidden ? styles.chipDisabled : styles.chipCapability}>{fs.trim()}</Chip>;
+  }, [isNotSymlink, llm.isUserClone, llm.interfaces, isHidden]);
+
+
+  return (
+    <ListItem>
+      <ListItemButton
+        aria-label='Configure LLM'
+        // color={(seemsFree && !isHidden) ? 'success' : undefined}
+        // variant={(seemsFree && !isHidden) ? 'soft' : undefined}
+        onClick={handleLLMConfigure}
+        tabIndex={-1}
+        sx={styles.liButton}
+      >
+
+        {/* Model Name */}
+        {SHOW_LLM_TOOLTIPS ? (
+          <GoodTooltip title={tooltip}>
+            <Box sx={isHidden ? styles.modelHiddenText : isCustomized ? styles.modelCustomizedText : styles.modelText} className='agi-ellipsize'>
+              {(/*props.isMobile &&*/ llm.userStarred) ? `${STAR_EMOJI} ${llmLabel}` : llmLabel}
+              {/*{labelWithoutDate}{labelDate && <Box component='span' sx={{ typography: 'body-sm',color: isHidden ? 'neutral.plainDisabledColor' : undefined  }}> · ({labelDate})</Box>}*/}
+              {/*{llm.interfaces.includes(LLM_IF_OAI_Reasoning) && <span style={styles.styleNameChip}>🧠</span>}*/}
+            </Box>
+          </GoodTooltip>
+        ) : (
+          <Box sx={isHidden ? styles.modelHiddenText : isCustomized ? styles.modelCustomizedText : styles.modelText} className='agi-ellipsize'>
+            {(/*props.isMobile &&*/ llm.userStarred) ? `${STAR_EMOJI} ${llmLabel}` : llmLabel}
+            {/*{labelWithoutDate}{labelDate && <Box component='span' sx={{ typography: 'body-sm',color: isHidden ? 'neutral.plainDisabledColor' : undefined  }}> · ({labelDate})</Box>}*/}
+            {/*{llm.interfaces.includes(LLM_IF_OAI_Reasoning) && <span style={styles.styleNameChip}>🧠</span>}*/}
+          </Box>
+        )}
+
+        {/* Preferred Chips */}
+        {SHOW_LLM_INTERFACES ? (chipsComponentsMemo && (
+          <Box sx={{
+            mr: 2,
+            display: 'flex', gap: 0.5,
+            // the following line is to absorb the padding of the list item
+            // my: 'calc(var(--ListItem-paddingY) / -2)',
+          }}>
+            {chipsComponentsMemo}
+          </Box>
+        )) : <>
+          {/*{domains['primaryChat']?.resolvedModelId === llm.id && <Chip size='sm' variant={domains['primaryChat']?.resolvedModelIsAuto ? undefined : 'solid'} sx={styles.chipPreferred}>Chat</Chip>}*/}
+          {domains['codeApply']?.resolvedModelId === llm.id && <Chip size='sm' variant={domains['codeApply']?.resolvedModelIsAuto ? undefined : 'solid'} sx={styles.chipPreferred}>Code</Chip>}
+          {domains['fastUtil']?.resolvedModelId === llm.id && <Chip size='sm' variant={domains['fastUtil']?.resolvedModelIsAuto ? undefined : 'solid'} sx={styles.chipPreferred}>Fast</Chip>}
+        </>}
+
+        {/* Features Chips - sync with `useLLMSelect.tsx` */}
+        {isRecentlyPublished && isNotSymlink && pubDate && (
+          <GoodTooltip title={`Released ${pubDate.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}`}>
+            <Chip size='sm' variant='solid' sx={styles.chipNew}>new</Chip>
+          </GoodTooltip>
+        )}
+        {featuresChipMemo}
+        {seemsFree && isNotSymlink && <Chip size='sm' color='success' variant='plain' sx={isHidden ? styles.chipDisabled : styles.chipFree}>free</Chip>}
+        {props.debugShowFn && llm.interfaces.includes(LLM_IF_OAI_Fn) && <Chip size='sm' variant='solid' color='warning'>fn</Chip>}
+
+
+        {/* Action Buttons */}
+
+        <Box sx={{ display: 'flex', gap: 1 }}>
+
+          {/*{!props.isMobile && <GoodTooltip title={llm.userStarred ? 'Unstar' : 'Star this model'}>*/}
+          {/*  <IconButton size='sm' onClick={handleLLMToggleStar} sx={absorbListPadding}>*/}
+          {/*    {llm.userStarred ? <StarIcon sx={{ color: '#fad857' }} /> : <StarBorderIcon sx={{ opacity: 0.5, fontSize: 'md' }} />}*/}
+          {/*  </IconButton>*/}
+          {/*</GoodTooltip>}*/}
+
+          {!props.isMobile && !!onModelSetHidden && <GoodTooltip title={isHidden ? 'Hidden' : 'Shown in Chat'}>
+            <IconButton aria-label={isHidden ? 'Unhide' : 'Hide in Chat'} size='sm' onClick={isHidden ? handleLLMUnhide : handleLLMHide} sx={absorbListPadding}>
+              {isHidden ? <VisibilityOffOutlinedIcon sx={{ opacity: 0.5, fontSize: 'md' }} /> : <VisibilityOutlinedIcon />}
+            </IconButton>
+          </GoodTooltip>}
+
+          <GoodTooltip title='Options'>
+            <IconButton aria-label='Configure LLM' size='sm' sx={absorbListPadding} onClick={handleLLMConfigure}>
+              <PhGearSixIcon />
+            </IconButton>
+          </GoodTooltip>
+
+        </Box>
+
+      </ListItemButton>
+    </ListItem>
+  );
+});
+
+export function ModelsList(props: {
+  filterServiceId: DModelsServiceId | null,
+  showHiddenModels: boolean,
+  onOpenLLMOptions: (id: DLLMId) => void,
+  sx?: SxProps,
+}) {
+
+  // external state
+  const isMobile = useIsMobile();
+  const showModelsFn = useUIPreferencesStore(state => state.showModelsFn);
+  const domainAssignments = useModelDomains();
+  const llms = useLLMsByService(props.filterServiceId === null ? false : props.filterServiceId);
+
+  const { onOpenLLMOptions } = props;
+
+  const handleModelClicked = React.useCallback((llmId: DLLMId) => onOpenLLMOptions(llmId), [onOpenLLMOptions]);
+
+  const handleModelSetHidden = React.useCallback((llmId: DLLMId, hidden: boolean) => llmsStoreActions().updateLLM(llmId, { userHidden: hidden }), []);
+
+  const handleModelSetStarred = React.useCallback((llmId: DLLMId, starred: boolean) => llmsStoreActions().updateLLM(llmId, { userStarred: starred }), []);
+
+  const modelItems: React.ReactNode[] = React.useMemo(() => {
+
+    // are we showing multiple services
+    const showAllServices = !props.filterServiceId;
+    // sort by service label so vendor groups appear alphabetically when showing all services (single-service view keeps existing order)
+    const orderedLLMs = showAllServices ? sortLLMsByServiceLabel(llms) : llms;
+    const hasManyServices = orderedLLMs.length >= 2 && orderedLLMs.some(llm => llm.sId !== orderedLLMs[0].sId);
+    let lastGroupLabel = '';
+
+    // generate the list items, prepending headers when necessary
+    const items: React.JSX.Element[] = [];
+    for (const llm of orderedLLMs) {
+
+      // skip hidden models if requested
+      if (!props.showHiddenModels && isLLMHidden(llm))
+        continue;
+
+      // get the service label
+      const serviceLabel = findModelsServiceOrNull(llm.sId)?.label || llm.sId;
+
+      // prepend label when switching services
+      if ((hasManyServices || showAllServices) && serviceLabel !== lastGroupLabel) {
+        items.push(
+          <ListItem key={'lab-' + llm.sId} sx={{ justifyContent: 'center' }}>
+            <Typography>
+              {serviceLabel}
+            </Typography>
+          </ListItem>,
+        );
+        lastGroupLabel = serviceLabel;
+      }
+
+      // for safety, ensure the vendor exists
+      const vendor = findModelVendor(llm.vId);
+      !!vendor && items.push(
+        <ModelItem
+          key={llm.userStarred ? llm.id + '_starred' : llm.id}
+          llm={llm}
+          serviceLabel={serviceLabel}
+          vendor={vendor}
+          domains={domainAssignments}
+          debugShowFn={showModelsFn}
+          isMobile={isMobile}
+          onModelClicked={handleModelClicked}
+          onModelSetHidden={props.showHiddenModels ? handleModelSetHidden : undefined}
+          onModelSetStarred={handleModelSetStarred}
+        />,
+      );
+    }
+
+    return items;
+  }, [domainAssignments, handleModelClicked, handleModelSetHidden, handleModelSetStarred, isMobile, llms, props.filterServiceId, props.showHiddenModels, showModelsFn]);
+
+  return (
+    <List size={!isMobile ? undefined : 'sm'} sx={props.sx}>
+      {modelItems.length > 0 ? modelItems : (
+        <ListItem sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Typography level='body-sm' mx={2} textAlign='center'>
+            Please complete the configuration<br />and refresh the models.
+          </Typography>
+          {/*<Skeleton variant='rectangular' animation={false} height={24} width={160} />*/}
+          {/*<Skeleton variant='rectangular' animation={false} height={24} width={120} />*/}
+          {/*<Skeleton variant='rectangular' animation={false} height={24} width={140} />*/}
+        </ListItem>
+      )}
+    </List>
+  );
+}

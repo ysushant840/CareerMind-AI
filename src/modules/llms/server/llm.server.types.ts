@@ -1,0 +1,186 @@
+import * as z from 'zod/v4';
+
+import type { DModelParameterId } from '~/common/stores/llms/llms.parameters'; // imported for making sure we sync
+import { LLMS_ALL_INTERFACES } from '~/common/stores/llms/llms.types';
+
+
+export type RequestAccessValues = { headers: HeadersInit; url: string; };
+
+export type ModelDescriptionSchema = z.infer<typeof ModelDescription_schema>;
+
+// export namespace AixWire_API_ListModels {
+
+/*
+ * Note: this needs to be moved to the AixWire_API_ListModels namespace
+ * HOWEVER if we did it now there will be some circular dependency issue
+ */
+
+
+/// Benchmark
+
+const BenchmarksScores_schema = z.object({
+  cbaElo: z.number().optional(), // Chat Bot Arena ELO score
+  // removed others for now to reduce noise - also maybe we shall have a mapping table instead
+});
+
+
+/// Pricing
+
+const PricePerMToken_schema = z.number().or(z.literal('free'));
+
+const PriceUpTo_schema = z.object({
+  upTo: z.number().nullable(),
+  price: PricePerMToken_schema,
+});
+
+const TieredPricing_schema = z.union([
+  PricePerMToken_schema,
+  z.array(PriceUpTo_schema),
+]);
+
+// NOTE: (!) keep this in sync with DPricingChatGenerate (llms.pricing.ts)
+const PricingChatGenerate_schema = z.object({
+  input: TieredPricing_schema.optional(),
+  output: TieredPricing_schema.optional(),
+  // Future: Perplexity has a cost per request, consider this for future additions
+  // perRequest: z.number().optional(), // New field for fixed per-request pricing
+  cache: z.discriminatedUnion('cType', [
+    z.object({
+      cType: z.literal('ant-bp'), // [Anthropic] Breakpoint-based caching
+      read: TieredPricing_schema,
+      write: TieredPricing_schema,
+      duration: z.number(),
+    }),
+    z.object({
+      cType: z.literal('oai-ac'), // [OpenAI] Automatic Caching
+      read: TieredPricing_schema,
+      // write: TieredPricing_schema, // Not needed, as it's the same as input cost, i.e. = 0
+    }),
+  ]).optional(),
+  // Not for the server-side, computed on the client only
+  // _isFree: z.boolean().optional(),
+});
+
+
+/// Model Description (out)
+const ModelParameterSpec_schema = z.object({
+  /**
+   * User-changeable parameters for this LLM.
+   *
+   * Uncommon idiosyncratic parameters for this model
+   * - we have only the 'extra' params here, as `llmRef`, `llmResponseTokens` and `llmTemperature` are common
+   * - see `llms.parameters.ts` for the full list
+   *
+   * NOTE: (!) keep this in sync with `DModelParameterId` (llms.parameters.ts) which is also used in AixAPI_Model when making the request
+   */
+  paramId: z.enum([
+    'llmTopP',
+    'llmForceNoStream',
+    // Vendor-specific effort params (converge to unified `effort` wire field)
+    'llmVndAntEffort',
+    'llmVndGemEffort',
+    'llmVndOaiEffort',
+    'llmVndMiscEffort',
+    // Anthropic
+    'llmVndAnt1MContext',
+    'llmVndAntCodeSandbox',
+    'llmVndAntInfSpeed',
+    'llmVndAntSkills',
+    'llmVndAntThinkingBudget',
+    'llmVndAntWebDynamic',
+    'llmVndAntWebFetch',
+    'llmVndAntWebFetchMaxUses',
+    'llmVndAntWebSearch',
+    'llmVndAntWebSearchMaxUses',
+    // Bedrock
+    'llmVndBedrockAPI',
+    // Gemini
+    'llmVndGeminiAgentViz',
+    'llmVndGeminiAspectRatio',
+    'llmVndGeminiCodeExecution',
+    'llmVndGeminiComputerUse',
+    'llmVndGeminiGoogleSearch',
+    'llmVndGeminiImageSize',
+    'llmVndGeminiMediaResolution',
+    'llmVndGeminiThinkingBudget',
+    // 'llmVndGeminiUrlContext',
+    // Moonshot
+    'llmVndMoonshotWebSearch',
+    // OpenAI
+    'llmVndOaiReasoningMode',
+    'llmVndOaiRestoreMarkdown',
+    'llmVndOaiVerbosity',
+    'llmVndOaiWebSearchContext',
+    'llmVndOaiWebSearchGeolocation',
+    'llmVndOaiImageGeneration',
+    'llmVndOaiCodeInterpreter',
+    // OpenRouter
+    'llmVndOrtWebSearch',
+    // Perplexity
+    'llmVndPerplexityDateFilter',
+    'llmVndPerplexitySearchMode',
+    // xAI
+    'llmVndXaiCodeExecution',
+    'llmVndXaiSearchInterval',
+    'llmVndXaiWebSearch',
+    'llmVndXaiXSearch',
+    'llmVndXaiXSearchHandles',
+  ] satisfies DModelParameterId[]),
+  required: z.boolean().optional(),
+  hidden: z.boolean().optional(),
+  initialValue: z.number().or(z.string()).or(z.boolean()).nullable().optional(),
+  // special params
+  enumValues: z.array(z.string()).optional(), // restrict enum values for this model
+  rangeOverride: z.tuple([z.number(), z.number()]).optional(), // [min, max]
+});
+
+export const ModelDescription_schema = z.object({
+  id: z.string(),
+  idVariant: z.string().optional(), // only used on the client by '_createDLLMFromModelDescription' to instantiate 'unique' copies of the same model
+  label: z.string(),
+  created: z.int().optional(),
+  updated: z.int().optional(),
+  pubDate: z.string().regex(/^\d{8}$/).optional(), // editorial: model's official public release date 'YYYYMMDD'. Required for editorial entries (KnownModelEditorial) and for 0-day-fillable paths (Anthropic placeholder, Gemini unknown-model fallback). Omitted for dynamic-only vendors and unknown variants where we have no reliable signal.
+  description: z.string(),
+  contextWindow: z.int().nullable(),
+  interfaces: z.array(z.enum(LLMS_ALL_INTERFACES).or(z.string())), // backward compatibility: to not Break client-side interface parsing on newer server
+  parameterSpecs: z.array(ModelParameterSpec_schema).optional(),
+  maxCompletionTokens: z.int().optional(), // initial parameter value for 'llmResponseTokens'
+  // rateLimits: rateLimitsSchema.optional(),
+  benchmark: BenchmarksScores_schema.optional(),
+  chatPrice: PricingChatGenerate_schema.optional(),
+  hidden: z.boolean().optional(),
+  // parameter initializers for vendor-specific defaults
+  initialTemperature: z.number().nullish(), // vendor-specific initial 'llmTemperature' (e.g. Gemini has 1.0)
+});
+
+
+/// Vendor Lookup for OpenRouter parameter inheritance
+// Each vendor's lookup filters to only what works through OpenRouter's OAI-compatible API.
+// OpenRouter merges these with its own auto-detected interfaces and params.
+export type OrtVendorLookupResult = {
+  pubDate?: ModelDescriptionSchema['pubDate'];
+  interfaces?: ModelDescriptionSchema['interfaces'];
+  parameterSpecs?: ModelDescriptionSchema['parameterSpecs'];
+  initialTemperature?: number; // vendor-specific default (e.g. Gemini 1.0); undefined = use global fallback (0.5)
+};
+
+
+/// ListModels Response
+
+export const ListModelsResponse_schema = z.object({
+  models: z.array(ModelDescription_schema),
+});
+
+
+/// File Metadata Response
+
+export const FileMetadataResponse_schema = z.object({
+  id: z.string(),
+  type: z.literal('file'),
+  filename: z.string(),
+  mime_type: z.string(),
+  size_bytes: z.number(),
+  created_at: z.string(),
+  downloadable: z.boolean().optional(),
+});

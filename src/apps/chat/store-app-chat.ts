@@ -1,0 +1,312 @@
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { useShallow } from 'zustand/react/shallow';
+
+import type { DLLMId } from '~/common/stores/llms/llms.types';
+import { Is } from '~/common/util/pwaUtils';
+
+
+export type ChatAutoSpeakType = 'off' | 'firstLine' | 'all';
+
+export type ChatThinkingPolicy = 'last-only' | 'all' | 'discard-all';
+
+export type TokenCountingMethod = 'accurate' | 'approximate';
+
+
+// Chat Settings (Chat AI & Chat UI)
+
+interface AppChatStore {
+
+  // chat AI
+
+  autoSpeak: ChatAutoSpeakType;
+  setAutoSpeak: (autoSpeak: ChatAutoSpeakType) => void;
+
+  autoSuggestAttachmentPrompts: boolean;
+  setAutoSuggestAttachmentPrompts: (autoSuggestAttachmentPrompts: boolean) => void;
+
+  autoSuggestDiagrams: boolean,
+  setAutoSuggestDiagrams: (autoSuggestDiagrams: boolean) => void;
+
+  autoSuggestHTMLUI: boolean;
+  setAutoSuggestHTMLUI: (autoSuggestHTMLUI: boolean) => void;
+
+  autoSuggestQuestions: boolean,
+  setAutoSuggestQuestions: (autoSuggestQuestions: boolean) => void;
+
+  autoTitleChat: boolean;
+  setAutoTitleChat: (autoTitleChat: boolean) => void;
+
+  autoVndAntBreakpoints: boolean;
+  setAutoVndAntBreakpoints: (autoVndAntBreakpoints: boolean) => void;
+
+  chatThinkingPolicy: ChatThinkingPolicy,
+  setChatThinkingPolicy: (chatThinkingPolicy: ChatThinkingPolicy) => void;
+
+  tokenCountingMethod: TokenCountingMethod;
+  setTokenCountingMethod: (tokenCountingMethod: TokenCountingMethod) => void;
+
+  // chat UI
+
+  clearFilters: () => void;
+
+  filterHasBeamOpen: boolean;
+  toggleFilterHasBeamOpen: () => void;
+
+  filterHasDocFragments: boolean;
+  toggleFilterHasDocFragments: () => void;
+
+  filterHasImageAssets: boolean;
+  toggleFilterHasImageAssets: () => void;
+
+  filterHasStars: boolean;
+  toggleFilterHasStars: () => void;
+
+  filterIsArchived: boolean;
+  toggleFilterIsArchived: () => void;
+
+  filterOlderThanDays: number | null;
+  setFilterOlderThanDays: (days: number | null) => void;
+
+  micTimeoutMs: number;
+  setMicTimeoutMs: (micTimeoutMs: number) => void;
+
+  showPersonaIcons2: boolean;
+  toggleShowPersonaIcons: () => void;
+
+  showRelativeSize: boolean;
+  toggleShowRelativeSize: () => void;
+
+  showTextDiff: boolean;
+  setShowTextDiff: (showTextDiff: boolean) => void;
+
+  showSystemMessages: boolean;
+  setShowSystemMessages: (showSystemMessages: boolean) => void;
+
+  showToolbarNavigation: boolean;
+  toggleShowToolbarNavigation: () => void;
+
+  // browser-storage disclaimer (warning shown at the bottom of the chat list)
+  storageWarningDismissed: boolean;
+  dismissStorageWarning: () => void;
+
+  // other chat-specific configuration
+
+  notificationEnabledModelIds: DLLMId[];
+  setNotificationEnabledForModel: (modelId: DLLMId, enabled: boolean) => void;
+  isNotificationEnabledForModel: (modelId: DLLMId) => boolean;
+
+}
+
+
+const useAppChatStore = create<AppChatStore>()(persist(
+  (_set, _get) => ({
+
+    // Chat AI
+
+    autoSpeak: 'off',
+    setAutoSpeak: (autoSpeak: ChatAutoSpeakType) => _set({ autoSpeak }),
+
+    autoSuggestAttachmentPrompts: false,
+    setAutoSuggestAttachmentPrompts: (autoSuggestAttachmentPrompts: boolean) => _set({ autoSuggestAttachmentPrompts }),
+
+    autoSuggestDiagrams: false,
+    setAutoSuggestDiagrams: (autoSuggestDiagrams: boolean) => _set({ autoSuggestDiagrams }),
+
+    autoSuggestHTMLUI: false,
+    setAutoSuggestHTMLUI: (autoSuggestHTMLUI: boolean) => _set({ autoSuggestHTMLUI }),
+
+    autoSuggestQuestions: false,
+    setAutoSuggestQuestions: (autoSuggestQuestions: boolean) => _set({ autoSuggestQuestions }),
+
+    autoTitleChat: true,
+    setAutoTitleChat: (autoTitleChat: boolean) => _set({ autoTitleChat }),
+
+    autoVndAntBreakpoints: true, // 2024-08-24: on as it saves user's money
+    setAutoVndAntBreakpoints: (autoVndAntBreakpoints: boolean) => _set({ autoVndAntBreakpoints }),
+
+    chatThinkingPolicy: 'last-only',
+    setChatThinkingPolicy: (chatThinkingPolicy: ChatThinkingPolicy) => _set({ chatThinkingPolicy }),
+
+    tokenCountingMethod: Is.Desktop ? 'accurate' : 'approximate',
+    setTokenCountingMethod: (tokenCountingMethod: TokenCountingMethod) => _set({ tokenCountingMethod }),
+
+    // Chat UI
+
+    clearFilters: () => _set({ filterIsArchived: false, filterHasBeamOpen: false, filterHasDocFragments: false, filterHasImageAssets: false, filterHasStars: false, filterOlderThanDays: null }),
+
+    filterHasBeamOpen: false,
+    toggleFilterHasBeamOpen: () => _set(({ filterHasBeamOpen }) => ({ filterHasBeamOpen: !filterHasBeamOpen })),
+
+    filterHasDocFragments: false,
+    toggleFilterHasDocFragments: () => _set(({ filterHasDocFragments }) => ({ filterHasDocFragments: !filterHasDocFragments })),
+
+    filterHasImageAssets: false,
+    toggleFilterHasImageAssets: () => _set(({ filterHasImageAssets }) => ({ filterHasImageAssets: !filterHasImageAssets })),
+
+    filterHasStars: false,
+    toggleFilterHasStars: () => _set(({ filterHasStars }) => ({ filterHasStars: !filterHasStars })),
+
+    filterIsArchived: false,
+    toggleFilterIsArchived: () => _set(({ filterIsArchived }) => ({ filterIsArchived: !filterIsArchived })),
+
+    filterOlderThanDays: null,
+    setFilterOlderThanDays: (filterOlderThanDays: number | null) => _set({ filterOlderThanDays }),
+
+    micTimeoutMs: 5000,
+    setMicTimeoutMs: (micTimeoutMs: number) => _set({ micTimeoutMs }),
+
+    // new default on 2024-11-18: disable icons by default, too confusing
+    showPersonaIcons2: false,
+    toggleShowPersonaIcons: () => _set(({ showPersonaIcons2 }) => ({ showPersonaIcons2: !showPersonaIcons2 })),
+
+    showRelativeSize: false,
+    toggleShowRelativeSize: () => _set(({ showRelativeSize }) => ({ showRelativeSize: !showRelativeSize })),
+
+    showTextDiff: false,
+    setShowTextDiff: (showTextDiff: boolean) => _set({ showTextDiff }),
+
+    showSystemMessages: false,
+    setShowSystemMessages: (showSystemMessages: boolean) => _set({ showSystemMessages }),
+
+    // on by default; no setting UI on `main` (the breadcrumb shows the chat title in the top bar); `dev` adds the toggle
+    showToolbarNavigation: true,
+    toggleShowToolbarNavigation: () => _set(({ showToolbarNavigation }) => ({ showToolbarNavigation: !showToolbarNavigation })),
+
+    // browser-storage disclaimer: shown until the user acknowledges it (persisted, so it survives reloads but not a cache clear - which is exactly the event it warns about)
+    storageWarningDismissed: false,
+    dismissStorageWarning: () => _set({ storageWarningDismissed: true }),
+
+    // Other chat-specific configuration
+
+    notificationEnabledModelIds: [],
+    setNotificationEnabledForModel: (modelId: DLLMId, enabled: boolean) => {
+      const notificationEnabledModelIds = _get().notificationEnabledModelIds;
+      if (!enabled)
+        _set({ notificationEnabledModelIds: notificationEnabledModelIds.filter(id => id !== modelId) });
+      else if (!notificationEnabledModelIds.includes(modelId))
+        _set({ notificationEnabledModelIds: [...notificationEnabledModelIds, modelId] });
+    },
+    isNotificationEnabledForModel: (modelId: DLLMId) => _get().notificationEnabledModelIds.includes(modelId),
+
+  }), {
+    name: 'app-app-chat',
+    version: 3, // note: v2 is a `dev`-only progressive-disclosure migration (panels not present on `main`); jump 1 -> 3 to stay aligned
+
+    onRehydrateStorage: () => (state) => {
+      if (!state) return;
+
+      // for now, let text diff be off by default
+      state.showTextDiff = false;
+
+      // reset the notifications for now, to make sure people don't forget the settings
+      state.notificationEnabledModelIds = [];
+    },
+
+    migrate: (state: any, fromVersion: number): AppChatStore => {
+      // 0 -> 1: autoTitleChat was off by mistake - turn it on [Remove past Dec 1, 2023]
+      if (state && fromVersion < 1)
+        state.autoTitleChat = true;
+
+      // 1 -> 3: show the conversation title in the top bar by default (v2 is a `dev`-only step)
+      if (state && fromVersion < 3)
+        state.showToolbarNavigation = true;
+
+      return state;
+    },
+  },
+));
+
+
+export const useChatAutoAI = () => useAppChatStore(useShallow(state => ({
+  autoSpeak: state.autoSpeak,
+  autoSuggestAttachmentPrompts: state.autoSuggestAttachmentPrompts,
+  autoSuggestDiagrams: state.autoSuggestDiagrams,
+  autoSuggestHTMLUI: state.autoSuggestHTMLUI,
+  autoSuggestQuestions: state.autoSuggestQuestions,
+  autoTitleChat: state.autoTitleChat,
+  autoVndAntBreakpoints: state.autoVndAntBreakpoints,
+  chatThinkingPolicy: state.chatThinkingPolicy,
+  tokenCountingMethod: state.tokenCountingMethod,
+  setAutoSpeak: state.setAutoSpeak,
+  setAutoSuggestAttachmentPrompts: state.setAutoSuggestAttachmentPrompts,
+  setAutoSuggestDiagrams: state.setAutoSuggestDiagrams,
+  setAutoSuggestHTMLUI: state.setAutoSuggestHTMLUI,
+  setAutoSuggestQuestions: state.setAutoSuggestQuestions,
+  setAutoTitleChat: state.setAutoTitleChat,
+  setAutoVndAntBreakpoints: state.setAutoVndAntBreakpoints,
+  setChatThinkingPolicy: state.setChatThinkingPolicy,
+  setTokenCountingMethod: state.setTokenCountingMethod,
+})));
+
+export const getChatAutoAI = (): {
+  autoSpeak: ChatAutoSpeakType,
+  autoSuggestAttachmentPrompts: boolean,
+  autoSuggestDiagrams: boolean,
+  autoSuggestHTMLUI: boolean,
+  autoSuggestQuestions: boolean,
+  autoTitleChat: boolean,
+  autoVndAntBreakpoints: boolean,
+} => useAppChatStore.getState();
+
+export const useChatAutoSuggestHTMLUI = (): boolean =>
+  useAppChatStore(state => state.autoSuggestHTMLUI);
+
+export const useChatAutoSuggestAttachmentPrompts = (): boolean =>
+  useAppChatStore(state => state.autoSuggestAttachmentPrompts);
+
+export const getChatThinkingPolicy = (): ChatThinkingPolicy =>
+  useAppChatStore.getState().chatThinkingPolicy;
+
+export const getChatTokenCountingMethod = (): TokenCountingMethod =>
+  useAppChatStore.getState().tokenCountingMethod;
+
+export const useChatMicTimeoutMsValue = (): number =>
+  useAppChatStore(state => state.micTimeoutMs);
+
+export const useChatMicTimeoutMs = (): [number, (micTimeoutMs: number) => void] =>
+  useAppChatStore(useShallow(state => [state.micTimeoutMs, state.setMicTimeoutMs]));
+
+export function useChatDrawerFilters() {
+  return useAppChatStore(useShallow(state => ({
+    filterHasBeamOpen: state.filterHasBeamOpen,
+    filterHasDocFragments: state.filterHasDocFragments,
+    filterHasImageAssets: state.filterHasImageAssets,
+    filterHasStars: state.filterHasStars,
+    filterIsArchived: state.filterIsArchived,
+    filterOlderThanDays: state.filterOlderThanDays,
+    showPersonaIcons: state.showPersonaIcons2,
+    showRelativeSize: state.showRelativeSize,
+    clearFilters: state.clearFilters,
+    setFilterOlderThanDays: state.setFilterOlderThanDays,
+    toggleFilterHasBeamOpen: state.toggleFilterHasBeamOpen,
+    toggleFilterHasDocFragments: state.toggleFilterHasDocFragments,
+    toggleFilterHasImageAssets: state.toggleFilterHasImageAssets,
+    toggleFilterHasStars: state.toggleFilterHasStars,
+    toggleFilterIsArchived: state.toggleFilterIsArchived,
+    toggleShowPersonaIcons: state.toggleShowPersonaIcons,
+    toggleShowRelativeSize: state.toggleShowRelativeSize,
+  })));
+}
+
+export const useChatShowTextDiff = (): [boolean, (showDiff: boolean) => void] =>
+  useAppChatStore(useShallow(state => [state.showTextDiff, state.setShowTextDiff]));
+
+export const getChatShowSystemMessages = (): boolean =>
+  useAppChatStore.getState().showSystemMessages;
+
+export const useChatShowSystemMessages = (): [boolean, (showSystemMessages: boolean) => void] =>
+  useAppChatStore(useShallow(state => [state.showSystemMessages, state.setShowSystemMessages]));
+
+export const useChatShowToolbarNavigation = (): boolean =>
+  useAppChatStore(state => state.showToolbarNavigation);
+
+export function useChatStorageWarning(): [boolean, () => void] {
+  return useAppChatStore(useShallow(state => [state.storageWarningDismissed, state.dismissStorageWarning]));
+}
+
+export const getIsNotificationEnabledForModel = (modelId: DLLMId): boolean =>
+  useAppChatStore.getState().isNotificationEnabledForModel(modelId);
+
+export const setIsNotificationEnabledForModel = (modelId: DLLMId, enabled: boolean) =>
+  useAppChatStore.getState().setNotificationEnabledForModel(modelId, enabled);

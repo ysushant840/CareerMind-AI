@@ -1,0 +1,86 @@
+import type { IModelVendor } from '../IModelVendor';
+import type { OpenAIAccessSchema } from '../../server/openai/openai.access';
+
+import { isLLMChatFree_cached } from '~/common/stores/llms/llms.pricing';
+
+import { ModelVendorOpenAI } from '../openai/openai.vendor';
+
+
+// special symbols
+export const isValidOpenRouterKey = (apiKey?: string) => !!apiKey && apiKey.startsWith('sk-or-') && apiKey.length > 40;
+
+// use OpenAI-compatible host and key
+export interface DOpenRouterServiceSettings {
+  oaiKey: string;
+  oaiHost: string;
+  csf?: boolean;
+  requireParameters?: boolean;
+}
+
+/**
+ * NOTE: the support is just started and incomplete - in particular it depends on some code that
+ * hasn't been merged yet.
+ *
+ * Completion:
+ *  [x] raise instanceLimit from 0 to 1 to continue development
+ *  [x] add support to the OpenAI Router and Streaming function to add the headers required by OpenRouter (done in the access function)
+ *  [~] merge the server-side models remapping from Azure OpenAI - not needed, using client-side remapping for now
+ *  [x] decide whether to do UI work to improve the appearance - prioritized models
+ *  [x] works!
+ */
+export const ModelVendorOpenRouter: IModelVendor<DOpenRouterServiceSettings, OpenAIAccessSchema> = {
+  id: 'openrouter',
+  name: 'OpenRouter',
+  displayRank: 40,
+  displayGroup: 'popular',
+  location: 'cloud',
+  instanceLimit: 1,
+  hasFreeModels: true,
+  hasServerConfigKey: 'hasLlmOpenRouter',
+
+  /// client-side-fetch ///
+  csfAvailable: _csfOpenRouterAvailable,
+
+  // functions
+  initializeSetup: (): DOpenRouterServiceSettings => ({
+    oaiHost: 'https://openrouter.ai/api',
+    oaiKey: '',
+  }),
+  getTransportAccess: (partialSetup): OpenAIAccessSchema => ({
+    dialect: 'openrouter',
+    clientSideFetch: _csfOpenRouterAvailable(partialSetup) && !!partialSetup?.csf,
+    oaiKey: partialSetup?.oaiKey || '',
+    oaiOrg: '',
+    oaiHost: partialSetup?.oaiHost || '',
+    ...(partialSetup?.requireParameters ? { orRequireParameters: true } : {}),
+  }),
+
+  // there is delay for OpenRouter Free API calls
+  rateLimitChatGenerate: async (llm) => {
+    const now = Date.now();
+    const elapsed = now - nextGenerationTs;
+    const wait = isLLMChatFree_cached(llm)
+      ? 5000 + 100 /* 5 seconds for free call, plus some safety margin */
+      : 100;
+
+    if (elapsed < wait) {
+      const delay = wait - elapsed;
+      nextGenerationTs = now + delay;
+      await new Promise(resolve => setTimeout(resolve, delay));
+    } else {
+      nextGenerationTs = now;
+    }
+  },
+
+
+  // OpenAI transport ('openrouter' dialect in 'access')
+  rpcUpdateModelsOrThrow: ModelVendorOpenAI.rpcUpdateModelsOrThrow,
+
+};
+
+// rate limit timestamp
+let nextGenerationTs = 0;
+
+function _csfOpenRouterAvailable(s?: Partial<DOpenRouterServiceSettings>) {
+  return !!s?.oaiKey;
+}

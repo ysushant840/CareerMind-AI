@@ -1,0 +1,75 @@
+import * as React from 'react';
+import Head from 'next/head';
+import dynamic from 'next/dynamic';
+import { MyAppProps } from 'next/app';
+
+import { Brand } from '~/common/app.config';
+import { apiQuery } from '~/common/util/trpc.client';
+
+
+// [server-client-safe] dynamic imports to avoid webpack bundling issues with next/navigation
+const VercelAnalytics = dynamic(() => import('@vercel/analytics/next').then(mod => mod.Analytics), { ssr: false });
+// const VercelSpeedInsights = dynamic(() => import('@vercel/speed-insights/next').then(mod => mod.SpeedInsights), { ssr: false });
+
+
+import 'katex/dist/katex.min.css';
+import '~/common/styles/CodePrism.css';
+import '~/common/styles/GithubMarkdown.css';
+import '~/common/styles/NProgress.css';
+import '~/common/styles/agi.effects.css';
+import '~/common/styles/app.styles.css';
+
+import { ErrorBoundary } from '~/common/components/ErrorBoundary';
+import { Is } from '~/common/util/pwaUtils';
+import { OverlaysInsert } from '~/common/layout/overlays/OverlaysInsert';
+import { ProviderBackendCapabilities } from '~/common/providers/ProviderBackendCapabilities';
+import { ProviderBootstrapLogic } from '~/common/providers/ProviderBootstrapLogic';
+import { ProviderSingleTab } from '~/common/providers/single-tab/ProviderSingleTab';
+import { ProviderTheming } from '~/common/providers/ProviderTheming';
+import { SnackbarInsert } from '~/common/components/snackbar/SnackbarInsert';
+import { hasGoogleAnalytics, OptionalGoogleAnalytics } from '~/common/components/3rdparty/GoogleAnalytics';
+import { hasPostHogAnalytics, OptionalPostHogAnalytics } from '~/common/components/3rdparty/PostHogAnalytics';
+import { OptionalUrlTrackingCleaner } from '~/common/components/3rdparty/UrlTrackingCleaner';
+
+
+const Big_AGI_App = ({ Component, emotionCache, pageProps }: MyAppProps) => {
+
+  // We are using a nextjs per-page layout pattern to bring the (Optima) layout creation to a shared place
+  // This reduces the flicker and the time switching between apps, and seems to not have impact on
+  // the build. This is a good trade-off for now.
+  const getLayout = Component.getLayout ?? ((page: any) => page);
+
+  return <>
+
+    <Head>
+      <title>{Brand.Title.Common}</title>
+      <meta name='viewport' content='minimum-scale=1, initial-scale=1, width=device-width, shrink-to-fit=no' />
+    </Head>
+
+    <ProviderTheming emotionCache={emotionCache}>
+      <ProviderSingleTab>
+        <ProviderBackendCapabilities>
+          {/* ^ Backend capabilities & SSR boundary */}
+          <ErrorBoundary outer>
+            <ProviderBootstrapLogic>
+              <SnackbarInsert />
+              {getLayout(<Component {...pageProps} />)}
+              <OverlaysInsert />
+            </ProviderBootstrapLogic>
+          </ErrorBoundary>
+        </ProviderBackendCapabilities>
+      </ProviderSingleTab>
+    </ProviderTheming>
+
+    {hasGoogleAnalytics && <OptionalGoogleAnalytics />}
+    {hasPostHogAnalytics && <OptionalPostHogAnalytics />}
+    <OptionalUrlTrackingCleaner />
+
+    {Is.Deployment.VercelFromFrontend && <VercelAnalytics debug={false} />}
+    {/*{Is.Deployment.VercelFromFrontend && <VercelSpeedInsights debug={false} sampleRate={1 / 2} />}*/}
+
+  </>;
+};
+
+// Initializes React Query and tRPC, and enables the tRPC React Query hooks (apiQuery).
+export default apiQuery.withTRPC(Big_AGI_App);

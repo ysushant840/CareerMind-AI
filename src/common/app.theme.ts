@@ -1,0 +1,327 @@
+import createCache, { StylisElement, StylisPlugin } from '@emotion/cache';
+
+import { Inter, JetBrains_Mono } from 'next/font/google';
+import { extendTheme } from '@mui/joy';
+
+import { animationEnterBelow, animationOpacityFadeIn } from '~/common/util/animUtils';
+
+
+// Definitions
+export type UIComplexityMode = 'minimal' | 'pro' | 'extra';
+export type ContentScaling = 'xs' | 'sm' | 'md';
+
+
+// CSS utils
+export const hideOnMobile = { display: { xs: 'none', md: 'flex' } };
+
+
+// Theme & Fonts
+
+const font = Inter({
+  weight: [ /* '300', sm */ '400' /* (undefined, default) */, '500' /* md */, '600' /* lg */, '700' /* xl */],
+  subsets: ['latin'],
+  display: 'swap',
+  fallback: ['Helvetica', 'Arial', 'sans-serif'],
+});
+export const themeFontFamilyCss = font.style.fontFamily;
+
+const jetBrainsMono = JetBrains_Mono({
+  weight: ['400', '500', '600', '700'],
+  subsets: ['latin'],
+  display: 'swap',
+  fallback: ['monospace'],
+});
+export const themeCodeFontFamilyCss = jetBrainsMono.style.fontFamily;
+
+/**
+ * Hotter lime for 'New'/'Beta' badges - intentionally brighter than the 400 brand anchor
+ * so tiny chips pop; pairs with black text and bold weight. Mirrors the website's
+ * RankingsSection chipNew - keep the two in sync.
+ */
+export const brandLimeExtraBadge = '#d4ff3a';
+
+
+export const createAppTheme = (uiComplexityMinimal: boolean) => extendTheme({
+  fontFamily: {
+    body: themeFontFamilyCss,
+    display: themeFontFamilyCss,
+    code: themeCodeFontFamilyCss,
+  },
+  // NOTE: the standalone /dev/inspect/*.html dev tools hand-mirror these neutral/background hex tokens
+  // (they intentionally have zero app imports). If you change the palette below, update those pages' CSS to match.
+  colorSchemes: {
+    light: {
+      palette: {
+        neutral: {
+          plainColor: 'var(--joy-palette-neutral-800)',     // [700 -> 800] Dropdown menu: increase text contrast a bit
+          solidBg: 'var(--joy-palette-neutral-700)',        // [500 -> 700] PageBar background & Button[solid]
+          solidHoverBg: 'var(--joy-palette-neutral-800)',   // [600 -> 800] Buttons[solid]:hover
+        },
+        // primary [800] > secondary [700 -> 800] > tertiary [600] > icon [500 -> 700]
+        text: {
+          icon: 'var(--joy-palette-neutral-700)',           // <IconButton color='neutral' /> icon color
+          secondary: 'var(--joy-palette-neutral-800)',      // increase contrast a bit
+          // tertiary: 'var(--joy-palette-neutral-700)',       // increase contrast a bit
+        },
+        // popup [white] > surface [50] > level1 [100] > level2 [200] > level3 [300 -> unused] > body [white -> 300]
+        background: {
+          // New
+          surface: 'var(--joy-palette-neutral-50, #FBFCFE)',
+          level1: 'var(--joy-palette-neutral-100, #F0F4F8)',
+          level2: 'var(--joy-palette-neutral-200, #DDE7EE)',
+          body: 'var(--joy-palette-neutral-300, #CDD7E1)',
+          backdrop: 'rgba(var(--joy-palette-neutral-darkChannel, 11 13 14) / 0.3333)', // was: 0.25
+          // Former
+          // body: 'var(--joy-palette-neutral-400, #9FA6AD)',
+        },
+      },
+    },
+    dark: {
+      palette: {
+        text: {
+          // do not increase contrast - text.primary would scream at you
+          // secondary: 'var(--joy-palette-neutral-100, #EAEEF6)',
+          // tertiary: 'var(--joy-palette-neutral-400, #9FA6AD)',
+        },
+        background: {
+          // New
+          popup: '#24292c', // 3: #32383E, 1: #171A1C, 2: #25282B
+          surface: 'var(--joy-palette-neutral-800, #171A1C)',
+          level1: 'var(--joy-palette-neutral-900, #0B0D0E)',
+          level2: 'var(--joy-palette-neutral-800, #171A1C)',
+          body: '#060807',
+          // Former: popup > surface [900] > level 1 [black], level 2 [800] > body [black]
+        },
+      },
+    },
+  },
+  components: {
+    /**
+     * Input
+     *  - remove the box-shadow: https://github.com/mui/material-ui/commit/8d4728df8a66d710660af96ac7ff3f86d2d26382
+     */
+    JoyInput: {
+      styleOverrides: {
+        root: {
+          boxShadow: 'none',
+        },
+      },
+    },
+
+    /**
+     * Select
+     * - remove the box-shadow: https://github.com/mui/material-ui/commit/8d4728df8a66d710660af96ac7ff3f86d2d26382
+     * */
+    JoySelect: {
+      styleOverrides: {
+        root: {
+          boxShadow: 'none',
+        },
+      },
+    },
+
+    /**
+     * Badge
+     * - add a 'color-feature' color, to be used with the FeatureBadge component
+     */
+    JoyBadge: {
+      styleOverrides: {
+        badge: ({ ownerState }) =>
+          // HACK: we set this to 'color-feature' to force the theming to our liking
+          (ownerState.color as any) !== 'color-feature' ? undefined : ({
+            backgroundColor: '#0288D1',
+          }),
+      },
+    },
+
+    // JoyMenuItem: {
+    //   styleOverrides: {
+    //     root: {
+    //       '--Icon-fontSize': '1rem', // smaller menu(s) icon - default is 1.25rem ('xl', 20px)
+    //     },
+    //   },
+    // },
+
+    JoyModal: {
+      styleOverrides: {
+        backdrop: uiComplexityMinimal ? {
+          backdropFilter: 'none', // always un-blur on minimal
+          // and no animation either, to keep it simple
+        } : {
+          animation: `${animationOpacityFadeIn} 0.16s ease-out`,
+        },
+      },
+    },
+    JoyModalDialog: {
+      styleOverrides: {
+        root: ({ theme }) => ({
+          [theme.breakpoints.down('sm')]: {
+            '--Card-padding': '1rem',
+          },
+          ...(!uiComplexityMinimal && {
+            '& .agi-animate-enter': {
+              animation: `${animationEnterBelow} 0.16s ease-out`,
+            },
+          }),
+        }),
+      },
+    },
+
+    /**
+     * Switch: increase the size of the thumb, to a default iconButton
+     * NOTE: do not use anything else than 'md' size
+     */
+    JoySwitch: {
+      styleOverrides: {
+        root: ({ ownerState }) => ({
+          ...(ownerState.size === 'md' && {
+            // '--Switch-trackWidth': '36px',
+            // '--Switch-trackHeight': '22px',
+            // '--Switch-thumbSize': '17px',
+            '--Switch-thumbSize': '16px',
+          }),
+        }),
+      },
+    },
+  },
+});
+
+export const themeBgApp = 'background.level1';
+export const themeBgAppDarker = 'background.level2';
+export const themeBgAppChatComposer = 'background.surface';
+
+export const lineHeightChatTextMd = 1.75;
+export const lineHeightTextareaMd = 1.75;
+
+export const themeZIndexBeamView = 10;
+export const themeZIndexPageBar = 25;
+export const themeZIndexDesktopDrawer = 26;
+export const themeZIndexDesktopPanel = 27;
+export const themeZIndexDesktopNav = 30;
+export const themeZIndexChatBubble = 50;
+export const themeZIndexDragOverlay = 60;
+export const themeZIndexOverMobileDrawer = 1301;
+
+
+// Dynamic UI Sizing
+
+export function adjustContentScaling(scaling: ContentScaling, offset?: number) {
+  if (!offset) return scaling;
+  const scalingArray = ['xs', 'sm', 'md'];
+  const scalingIndex = scalingArray.indexOf(scaling);
+  const newScalingIndex = Math.max(0, Math.min(scalingArray.length - 1, scalingIndex + offset));
+  return scalingArray[newScalingIndex] as ContentScaling;
+}
+
+interface ContentScalingOptions {
+  // BlocksRenderer
+  blockCodeFontSize: string;
+  blockCodeMarginY: number;
+  blockFontSize: string;
+  blockImageGap: number;
+  blockLineHeight: string | number;
+  // ChatMessage
+  chatMessagePadding: number;
+  fragmentButtonFontSize: string;
+  // ChatDrawer
+  chatDrawerItemSx: { '--ListItem-minHeight': string, fontSize: string };
+  chatDrawerItemFolderSx: { '--ListItem-minHeight': string, fontSize: string };
+  // OptimaPanelGroup
+  optimaPanelGroupSize: 'sm' | 'md';
+}
+
+export const themeScalingMap: Record<ContentScaling, ContentScalingOptions> = {
+  xs: {
+    blockCodeFontSize: '0.75rem',
+    blockCodeMarginY: 0.5,
+    blockFontSize: 'xs',
+    blockImageGap: 1,
+    blockLineHeight: 1.666667,
+    chatMessagePadding: 1,
+    fragmentButtonFontSize: 'xs',
+    chatDrawerItemSx: { '--ListItem-minHeight': '2.25rem', fontSize: 'sm' },          // 36px
+    chatDrawerItemFolderSx: { '--ListItem-minHeight': '2.5rem', fontSize: 'sm' },     // 40px
+    optimaPanelGroupSize: 'sm',
+  },
+  sm: {
+    blockCodeFontSize: '0.75rem',
+    blockCodeMarginY: 1,
+    blockFontSize: 'sm',
+    blockImageGap: 1.5,
+    blockLineHeight: 1.714286,
+    chatMessagePadding: 1.5,
+    fragmentButtonFontSize: 'sm',
+    chatDrawerItemSx: { '--ListItem-minHeight': '2.25rem', fontSize: 'sm' },
+    chatDrawerItemFolderSx: { '--ListItem-minHeight': '2.5rem', fontSize: 'sm' },
+    optimaPanelGroupSize: 'sm',
+  },
+  md: {
+    blockCodeFontSize: '0.875rem',
+    blockCodeMarginY: 1.5,
+    blockFontSize: 'md',
+    blockImageGap: 2,
+    blockLineHeight: 1.75,
+    chatMessagePadding: 2,
+    fragmentButtonFontSize: 'sm',
+    chatDrawerItemSx: { '--ListItem-minHeight': '2.5rem', fontSize: 'md' },           // 40px
+    chatDrawerItemFolderSx: { '--ListItem-minHeight': '2.75rem', fontSize: 'md' },    // 44px
+    optimaPanelGroupSize: 'md',
+  },
+  // lg: {
+  //   chatDrawerFoldersLineHeight: '3rem',
+  // },
+};
+
+
+// Emotion Cache (with insertion point on the SSR pass)
+
+const isBrowser = typeof document !== 'undefined';
+
+const emotionStylisPlugins: StylisPlugin[] = [
+
+  /**
+   * 1. remove the default prefixer plugin: probably not needed and bloating
+   */
+  // prefixer,
+
+  /**
+   * 2. add a function to remove wide-matching CSS rules from Joy UI.
+   * Culprit: https://github.com/mui/material-ui/blob/a705e1f15075b2deb59263868bfa7b1d9f84cdd4/packages/mui-joy/src/Checkbox/Checkbox.tsx#L59
+   * These '~ *' rules are slow and cause a lot of reflows.
+   *
+   * To validate, search the Elements tab for JoyCheckbox-root, and see if there's the '~ *' rule.
+   */
+  function removeSlowCSS(element: StylisElement /*, index, children, callback*/) {
+    if (
+      element.type === 'rule' // only operate on rules
+      && element.value.endsWith('~*')  // where the selector is broad reaching
+      && Array.isArray(element.children)  // and there are children (rules)
+    ) {
+      // console.log('✓ Filtering out problematic selector:', element);
+      element.return = ' ';  // removes the selector (empirical)
+      element.children = []; // removes the rule (empirical)
+    }
+  },
+
+];
+
+
+export function createEmotionCache() {
+  let insertionPoint: HTMLElement | undefined;
+
+  if (isBrowser) {
+    // On the client side, _document.tsx has a meta tag with the name "emotion-insertion-point" at the top of the <head>.
+    // This assures that MUI styles are loaded first, and allows allows developers to easily override MUI styles with other solutions like CSS modules.
+    const emotionInsertionPoint = document.querySelector<HTMLMetaElement>(
+      'meta[name="emotion-insertion-point"]',
+    );
+    insertionPoint = emotionInsertionPoint ?? undefined;
+  }
+
+  return createCache({ key: 'mui-style', insertionPoint: insertionPoint, stylisPlugins: emotionStylisPlugins });
+}
+
+// MISC
+
+// For next April Fools' week
+// export const foolsMode = new Date().getMonth() === 3 && new Date().getDate() <= 7;

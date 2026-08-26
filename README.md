@@ -127,7 +127,7 @@ development.
 
 ### CareerMind AI
 
-**[https://careermind.ai](https://career-mind-ai-nu.vercel.app/)**
+**(https://career-mind-ai-nu.vercel.app/)**
 
 ---
 

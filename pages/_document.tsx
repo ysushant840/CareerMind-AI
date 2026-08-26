@@ -53,7 +53,7 @@ export default function MyDocument({ emotionStyleTags }: MyDocumentProps) {
         <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify({
           '@context': 'https://schema.org',
           '@type': 'SoftwareApplication',
-          'name': 'Big-AGI',
+          'name': 'CareerMind AI',
           'url': 'https://big-agi.com',
           'applicationCategory': 'ProductivityApplication',
           'operatingSystem': 'All, Web',
@@ -119,7 +119,7 @@ MyDocument.getInitialProps = async (ctx: DocumentContext) => {
   const initialProps = await Document.getInitialProps(ctx);
 
   // Inject the comment before the HTML tag
-  initialProps.html = `<!-- ❤ Built with Big-AGI -->\n${initialProps.html}`;
+  initialProps.html = `<!-- ❤ Built with CareerMind AI -->\n${initialProps.html}`;
 
   // This is important. It prevents Emotion to render invalid HTML.
   // See https://github.com/mui/material-ui/issues/26561#issuecomment-855286153

@@ -1,13 +1,12 @@
 {
-  "name": "big-AGI",
-  "short_name": "big-AGI",
+  "name": "CareerMind AI",
+  "short_name": "CareerMind AI",
   "theme_color": "#32383E",
   "background_color": "#9FA6AD",
-  "description": "Open-source AI workspace. Multi-model reasoning and personas for maximum control.",
+  "description": "Your Intelligent Career Assistant powered by AI.",
   "categories": [
     "productivity",
     "AI",
-    "tool",
     "utilities"
   ],
   "display": "standalone",

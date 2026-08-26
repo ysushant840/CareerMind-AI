@@ -183,7 +183,7 @@ function StorageWarningConfirmationModal(props: {
       {/* Messages */}
       <Box sx={_styles.block}>
         <Box fontSize='sm'>
-          Big-AGI is a local-first app that saves your data and settings in this browser - private by default.
+          CareerMind AI is a local-first app that saves your data and settings in this browser - private by default.
         </Box>
         <Box fontSize='sm'>
           <b>Clearing the browser cache or data will erase chats and settings permanently.</b>

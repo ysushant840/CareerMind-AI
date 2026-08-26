@@ -173,7 +173,7 @@ export function DesktopNav(props: { component: React.ElementType, currentApp?: N
           <MenuItem component='a' variant='solid' color='primary' href={bigAgiProUrl} target='_blank' sx={{ minHeight: 40 }}>
             {/*<ListItemDecorator>New</ListItemDecorator>*/}
             {/*<ListItemDecorator><RocketLaunchRounded /></ListItemDecorator>*/}
-            Big-AGI Pro
+            CareerMind AI Pro
             {/*✨*/}
             <ArrowOutwardRoundedIcon sx={{ ml: 'auto' }}/>
           </MenuItem>
@@ -225,7 +225,7 @@ export function DesktopNav(props: { component: React.ElementType, currentApp?: N
           <MenuItem component='a' href={BaseProduct.SupportForm()} target='_blank'>
             <ListItemDecorator>🔥</ListItemDecorator>
             <div>
-              Improve Big-AGI
+              Improve CareerMind AI
               <FormHelperText>AI fixes what you report</FormHelperText>
             </div>
             <ArrowOutwardRoundedIcon sx={{ ml: 'auto' }} />

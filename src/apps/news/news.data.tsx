@@ -64,9 +64,9 @@ export const DevNewsItem: NewsItem = {
   versionName: 'Development Build',
   versionDate: undefined,
   items: [
-    { text: <>You&apos;re running an unsupported <B>developer build</B> of Big-AGI Open {_frontendPkgVersion}</> },
+    { text: <>You&apos;re running an unsupported <B>developer build</B> of CareerMind AI Open {_frontendPkgVersion}</> },
     { text: <>Please report screenshots of breakages and console error messages</> },
-    { text: <ExternalLink href='https://big-agi.com'>Back to the official version</ExternalLink> },
+    { text: <ExternalLink href='https://big-agi.com'>Back to CareerMind AI</ExternalLink> },
   ],
 } as const;
 
@@ -147,7 +147,7 @@ export const NewsItems: NewsItem[] = [
     versionDate: new Date('2025-10-31T15:00:00Z'),
     versionCoverImage: coverV200,
     items: [
-      { text: <><B wow>Big-AGI Open</B> is ready and more productive and faster than ever, with:</> },
+      { text: <><B wow>CareerMind AI Open</B> is ready and more productive and faster than ever, with:</> },
       { text: <><B>Beam 2</B>: multi-modal, program-based, follow-ups, save presets</> },
       { text: <>Top-notch AI models support including <B>agentic models</B> and <B>reasoning models</B></> },
       { text: <><B>Image Generation</B> and editing with Nano Banana and gpt-image-1</> },
@@ -184,7 +184,7 @@ export const NewsItems: NewsItem[] = [
       { text: <>1.16.7: Gpt-4o <B>2024-08-06</B></> },
       { text: <>1.16.8: <B>ChatGPT-4o</B> latest</> },
       { text: <>1.16.9: <B>Gemini</B> fixes</> },
-      { text: <>OpenAI <B>o1</B>, DeepSeek R1, and newer models require Big-AGI Open. <B href='https://form.typeform.com/to/ZSADpr5u?utm_source=gh-2&utm_medium=news&utm_campaign=ea2'>Sign up here</B></> },
+      { text: <>OpenAI <B>o1</B>, DeepSeek R1, and newer models require CareerMind AI Open. <B href='https://form.typeform.com/to/ZSADpr5u?utm_source=gh-2&utm_medium=news&utm_campaign=ea2'>Sign up here</B></> },
     ],
   },
   {

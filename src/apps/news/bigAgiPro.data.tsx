@@ -17,10 +17,10 @@ export function BigAgiProNewsCallout() {
   return (
     <Card variant='solid' color='primary' invertedColors>
       <CardContent sx={{ gap: 2 }}>
-        <Typography level='title-lg'>Big-AGI Pro ✨ - Now Live</Typography>
+        <Typography level='title-lg'>CareerMind AI Pro ✨ - Now Live</Typography>
 
         <Typography level='title-sm' sx={{ lineHeight: 'xl' }}>
-          Experience the <b>next generation of Big-AGI</b> with <b>Beam 2</b>, <b>Personas</b>, and <b>Cloud Sync</b> to never lose data.
+          Experience the <b>next generation of CareerMind AI</b> with <b>Beam 2</b>, <b>Personas</b>, and <b>Cloud Sync</b> to never lose data.
         </Typography>
 
         <Grid container spacing={1}>
@@ -36,7 +36,7 @@ export function BigAgiProNewsCallout() {
               noLinkStyle
               target='_blank'
             >
-              Big-AGI Pro
+              CareerMind AI Pro
             </Button>
           </Grid>
 

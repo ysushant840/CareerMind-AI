@@ -59,7 +59,7 @@ export const Release = {
 
 
 export const BaseProduct = {
-  ProductName: 'Big-AGI',
+  ProductName: 'CareerMind AI',
   ProductURL: 'https://big-agi.com',
   PrivacyPolicy: 'https://big-agi.com/privacy',
   TermsOfService: 'https://big-agi.com/terms',
